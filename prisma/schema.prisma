@@ -1,0 +1,73 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Service {
+  id    Int    @id @default(autoincrement())
+  name  String @unique
+  leads Lead[]
+
+  @@map("services")
+}
+
+model Provider {
+  id              Int              @id @default(autoincrement())
+  name            String           @unique
+  monthlyQuota    Int              @default(10)
+  leadsReceived   Int              @default(0)
+  leadAssignments LeadAssignment[]
+
+  @@map("providers")
+}
+
+model Lead {
+  id          Int              @id @default(autoincrement())
+  name        String
+  phone       String
+  city        String
+  description String
+  serviceId   Int
+  service     Service          @relation(fields: [serviceId], references: [id])
+  createdAt   DateTime         @default(now())
+  assignments LeadAssignment[]
+
+  // Enforce: same phone cannot submit same service twice
+  @@unique([phone, serviceId])
+  @@map("leads")
+}
+
+model LeadAssignment {
+  id         Int      @id @default(autoincrement())
+  leadId     Int
+  providerId Int
+  assignedAt DateTime @default(now())
+  lead       Lead     @relation(fields: [leadId], references: [id])
+  provider   Provider @relation(fields: [providerId], references: [id])
+
+  @@unique([leadId, providerId])
+  @@map("lead_assignments")
+}
+
+// Tracks round-robin position per service for fair distribution
+model AllocationState {
+  id        Int    @id @default(autoincrement())
+  serviceId Int    @unique
+  pointer   Int    @default(0) // index into the pool array
+
+  @@map("allocation_states")
+}
+
+// Idempotency keys for webhook calls
+model WebhookEvent {
+  id          String   @id // idempotency key
+  eventType   String
+  processedAt DateTime @default(now())
+  payload     String
+
+  @@map("webhook_events")
+}
