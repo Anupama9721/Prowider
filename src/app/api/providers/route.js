@@ -1,0 +1,27 @@
+import { NextResponse } from 'next/server';
+import prisma from '@/lib/prisma';
+
+export const dynamic = 'force-dynamic';
+
+export async function GET() {
+  try {
+    const providers = await prisma.provider.findMany({
+      include: {
+        leadAssignments: {
+          include: {
+            lead: {
+              include: { service: true },
+            },
+          },
+          orderBy: { assignedAt: 'desc' },
+        },
+      },
+      orderBy: { id: 'asc' },
+    });
+
+    return NextResponse.json(providers);
+  } catch (error) {
+    console.error('Fetch providers error:', error);
+    return NextResponse.json({ error: 'Failed to fetch providers' }, { status: 500 });
+  }
+}
